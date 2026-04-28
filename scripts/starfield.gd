@@ -1,7 +1,13 @@
 extends Node2D
 
-const STAR_COUNT: int = 320
-const NEBULA_BLOBS: int = 6
+# Generation bounds extend well past the 1600x900 logical viewport so the
+# starfield + nebula keep covering the visible area on wide / ultrawide screens.
+const FIELD_LEFT: float   = -2000.0
+const FIELD_TOP: float    = -1000.0
+const FIELD_RIGHT: float  = 3600.0
+const FIELD_BOTTOM: float = 1900.0
+const STAR_COUNT: int     = 900   # scaled up to keep density consistent over the larger area
+const NEBULA_BLOBS: int   = 14
 
 var stars: Array = []
 var nebula: Array = []
@@ -13,7 +19,7 @@ func _ready() -> void:
 	rng.randomize()
 	for i in range(STAR_COUNT):
 		stars.append({
-			"pos": Vector2(rng.randf() * 1600.0, rng.randf() * 900.0),
+			"pos": Vector2(rng.randf_range(FIELD_LEFT, FIELD_RIGHT), rng.randf_range(FIELD_TOP, FIELD_BOTTOM)),
 			"size": rng.randf_range(0.4, 1.9),
 			"alpha": rng.randf_range(0.25, 0.95),
 			"speed": rng.randf_range(0.6, 2.4),
@@ -29,7 +35,7 @@ func _ready() -> void:
 	]
 	for i in range(NEBULA_BLOBS):
 		nebula.append({
-			"pos": Vector2(rng.randf() * 1600.0, rng.randf() * 900.0),
+			"pos": Vector2(rng.randf_range(FIELD_LEFT, FIELD_RIGHT), rng.randf_range(FIELD_TOP, FIELD_BOTTOM)),
 			"radius": rng.randf_range(160.0, 280.0),
 			"color": hues[i % hues.size()]
 		})
