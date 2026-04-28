@@ -7,6 +7,7 @@ extends Node2D
 @onready var hud_label: Label = $HUD/Label
 @onready var send_label: Label = $HUD/SendLabel
 @onready var upgrade_label: Label = $HUD/UpgradeLabel
+@onready var upgrade_button: Button = $HUD/UpgradeButton
 @onready var balance_bar: Node2D = $HUD/BalanceBar
 @onready var ai_timer: Timer = $AITimer
 
@@ -24,6 +25,7 @@ func _ready() -> void:
 	ai_timer.timeout.connect(_on_ai_timer_timeout)
 	ai_timer.wait_time = Settings.AI_TICK_INTERVAL
 	ai_timer.start()
+	upgrade_button.pressed.connect(_on_upgrade_button_pressed)
 	hud_label.text = ""
 	_refresh_hud()
 
@@ -83,6 +85,9 @@ func _input(event: InputEvent) -> void:
 			_adjust_send(-Settings.SEND_FRACTION_STEP)
 			return
 		elif event.button_index == MOUSE_BUTTON_LEFT:
+			# Ignore world-click deselect when the mouse is over HUD controls.
+			if get_viewport().gui_get_hovered_control() != null:
+				return
 			# Empty-space deselect using a geometric check — doesn't depend on
 			# Godot's input-handled flag, which can be unreliable from Area2D._input_event.
 			if not _click_was_on_planet():
@@ -102,18 +107,12 @@ func _click_was_on_planet() -> bool:
 
 # === Planet click handlers ===
 
-func _on_planet_left_clicked(planet, double_click: bool) -> void:
+func _on_planet_left_clicked(planet, _double_click: bool) -> void:
 	if game_over:
 		return
 	if planet.owner_type != planet.Owner.PLAYER:
 		return
-	if double_click:
-		# Only act if upgrade is actually possible — otherwise total no-op
-		if planet.can_upgrade():
-			planet.start_upgrade()
-			_refresh_hud()
-		return
-	# Single click: select (no-op if already selected) + produce one drone
+	# Left-click: select + produce one drone.
 	_select(planet)
 	planet.produce_manual()
 	_refresh_hud()
@@ -189,16 +188,44 @@ func _spawn_drone(from_pos: Vector2, target, owner_val: int) -> void:
 # === HUD ===
 
 func _refresh_hud() -> void:
-	if not send_label or not upgrade_label:
+	if not send_label or not upgrade_label or not upgrade_button:
 		return
 	var pct = int(round(send_fraction * 100.0))
 	if selected_planet != null:
 		var n = int(selected_planet.drone_count * send_fraction)
 		send_label.text = "Send: %d%%  (%d drones)" % [pct, n]
 		upgrade_label.text = _upgrade_status_text(selected_planet)
+		_refresh_upgrade_button(selected_planet)
 	else:
 		send_label.text = "Send: %d%%" % pct
 		upgrade_label.text = ""
+		upgrade_button.text = "Upgrade"
+		upgrade_button.disabled = true
+
+func _refresh_upgrade_button(planet) -> void:
+	if planet.owner_type != planet.Owner.PLAYER:
+		upgrade_button.text = "Upgrade"
+		upgrade_button.disabled = true
+		return
+	if planet.is_upgrading:
+		upgrade_button.text = "Upgrading..."
+		upgrade_button.disabled = true
+		return
+	if planet.upgrade_tier >= Settings.TIER_COUNT - 1:
+		upgrade_button.text = "Max Tier"
+		upgrade_button.disabled = true
+		return
+	var cost = planet.upgrade_cost()
+	upgrade_button.text = "Upgrade (%d)" % cost
+	upgrade_button.disabled = planet.drone_count < cost
+
+func _on_upgrade_button_pressed() -> void:
+	if game_over:
+		return
+	if selected_planet == null:
+		return
+	if selected_planet.start_upgrade():
+		_refresh_hud()
 
 func _upgrade_status_text(planet) -> String:
 	if planet.owner_type != planet.Owner.PLAYER:
@@ -210,7 +237,7 @@ func _upgrade_status_text(planet) -> String:
 		return "Tier %d  (max)" % planet.upgrade_tier
 	var cost = planet.upgrade_cost()
 	if planet.drone_count >= cost:
-		return "Tier %d  →  Tier %d  (double-click, cost %d)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
+		return "Tier %d  →  Tier %d  (button, cost %d)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
 	return "Tier %d  →  Tier %d  (need %d drones)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
 
 # === Win/lose ===

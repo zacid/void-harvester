@@ -6,7 +6,7 @@ extends RefCounted
 const TIER_COUNT: int = 4
 const UPGRADE_COSTS: Array[int]      = [0,    10,   25,   50]   # cost to reach this tier
 const TIER_GEN_RATES: Array[float]   = [0.0,  0.5,  1.0,  2.0]  # drones per second
-const TIER_MAX_DRONES: Array[int]    = [20,   30,   50,   80]   # cap
+const TIER_MAX_DRONES: Array[int]    = [999, 999, 999, 999]     # effectively uncapped for now
 
 const UPGRADE_DURATION: float = 5.0  # seconds locked while upgrading
 

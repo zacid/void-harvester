@@ -69,8 +69,26 @@ func produce_manual() -> bool:
 	if is_upgrading or owner_type == Owner.NEUTRAL:
 		return false
 	drone_count = minf(drone_count + Settings.MANUAL_CLICK_BONUS, float(get_max_drones()))
+	_spawn_manual_gain_popup(Settings.MANUAL_CLICK_BONUS)
 	update_visuals()
 	return true
+
+func _spawn_manual_gain_popup(amount: int) -> void:
+	var popup := Label.new()
+	popup.text = "+%d" % amount
+	popup.position = Vector2(-16.0, -PLANET_RADIUS - 24.0)
+	popup.modulate = Color(0.7, 1.0, 1.0, 1.0)
+	popup.add_theme_color_override("font_color", Color(0.7, 1.0, 1.0))
+	popup.add_theme_color_override("font_outline_color", Color(0.0, 0.15, 0.2))
+	popup.add_theme_constant_override("outline_size", 3)
+	popup.add_theme_font_size_override("font_size", 18)
+	add_child(popup)
+
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "position:y", popup.position.y - 26.0, 0.35)
+	tween.tween_property(popup, "modulate:a", 0.0, 0.35)
+	tween.finished.connect(popup.queue_free)
 
 # === Upgrade ===
 
