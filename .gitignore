@@ -1,0 +1,21 @@
+# Godot editor cache and import artifacts
+.godot/
+.import/
+
+# Claude Code local settings (per-machine)
+.claude/settings.local.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Local Godot user data
+*.translation
+
+# Build folder kept (GitHub Pages serves from it) — but ignore stray .tmp
+build/*.tmp
+docs/*.tmp

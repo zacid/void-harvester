@@ -1,0 +1,98 @@
+[gd_scene load_steps=5 format=3 uid="uid://bmvh3k8n2x4qp"]
+
+[ext_resource type="Script" uid="uid://c7t9r5w1v6jfm" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://dn4q8s2y7m3kh" path="res://scenes/Planet.tscn" id="2_planet"]
+[ext_resource type="PackedScene" uid="uid://e1b7x4g6v9cts" path="res://scenes/Fleet.tscn" id="3_fleet"]
+[ext_resource type="Script" uid="uid://g8h2k4n6m1pwc" path="res://scripts/starfield.gd" id="4_starfield"]
+[ext_resource type="Script" uid="uid://h9k3l5p7n2qxd" path="res://scripts/balance_bar.gd" id="5_balance"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+fleet_scene = ExtResource("3_fleet")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1600.0
+offset_bottom = 900.0
+color = Color(0.02, 0.02, 0.06, 1)
+mouse_filter = 2
+
+[node name="Starfield" type="Node2D" parent="."]
+script = ExtResource("4_starfield")
+
+[node name="Planets" type="Node2D" parent="."]
+
+[node name="Planet0" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(220, 450)
+owner_type = 1
+drone_count = 15.0
+
+[node name="Planet1" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(480, 220)
+
+[node name="Planet2" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(800, 130)
+drone_count = 8.0
+
+[node name="Planet3" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(800, 450)
+drone_count = 12.0
+
+[node name="Planet4" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(800, 770)
+drone_count = 8.0
+
+[node name="Planet5" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(480, 680)
+
+[node name="Planet6" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(1120, 220)
+
+[node name="Planet7" parent="Planets" instance=ExtResource("2_planet")]
+position = Vector2(1380, 450)
+owner_type = 2
+drone_count = 15.0
+upgrade_tier = 2
+
+[node name="Fleets" type="Node2D" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="SendLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 720.0
+offset_bottom = 60.0
+theme_override_colors/font_color = Color(0.7, 1.0, 1.0, 1)
+theme_override_colors/font_outline_color = Color(0, 0.1, 0.15, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 22
+text = "Send: 50%"
+
+[node name="UpgradeLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 52.0
+offset_right = 900.0
+offset_bottom = 92.0
+theme_override_colors/font_color = Color(1.0, 0.85, 0.5, 1)
+theme_override_colors/font_outline_color = Color(0.15, 0.05, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = ""
+
+[node name="Label" type="Label" parent="HUD"]
+offset_left = 550.0
+offset_top = 380.0
+offset_right = 1050.0
+offset_bottom = 540.0
+theme_override_font_sizes/font_size = 42
+horizontal_alignment = 1
+vertical_alignment = 1
+text = ""
+
+[node name="BalanceBar" type="Node2D" parent="HUD"]
+script = ExtResource("5_balance")
+
+[node name="AITimer" type="Timer" parent="."]
+wait_time = 2.5
