@@ -24,9 +24,26 @@ const SEND_FRACTION_MIN: float     = 0.1
 const SEND_FRACTION_MAX: float     = 1.0
 const SEND_FRACTION_STEP: float    = 0.1
 
-# === AI ===
-const AI_TICK_INTERVAL: float    = 2.5
-const AI_MIN_DRONES_TO_ATTACK: int = 5
+# === AI core ===
+const AI_TICK_INTERVAL: float       = 2.5     # how often AI considers attacking
+const AI_MIN_DRONES_TO_ATTACK: int  = 5
+
+# === AI manual production (human-like clicking — one click at a time) ===
+const AI_ENABLE_MANUAL_CLICKS: bool = true
+const AI_CLICK_INTERVAL: float      = 0.40    # seconds between clicks (one planet per tick)
+const AI_CLICK_FOCUS_CHANCE: float  = 0.55    # chance to keep clicking the same planet (vs moving to next)
+
+# === AI upgrades ===
+const AI_ENABLE_UPGRADES: bool      = true
+const AI_UPGRADE_CHECK_INTERVAL: float = 5.0  # how often AI considers upgrading
+const AI_UPGRADE_CHANCE: float      = 0.65    # probability of acting when an opportunity exists
+const AI_UPGRADE_DRONE_RESERVE: int = 6       # AI won't upgrade if it'd leave fewer than this many drones
+
+# === AI defense (reacts to player attacks) ===
+const AI_ENABLE_DEFENSE: bool       = true
+const AI_DEFENSE_REACTION_TIME: float = 0.7   # seconds of human-like delay before reacting
+const AI_DEFENSE_BUFFER: int        = 3       # extra drones beyond just-enough-to-stop-attack
+const AI_DEFENSE_TIME_SLACK: float  = 0.5     # ok if reinforcements arrive up to this many sec late
 
 # === Map layout (1600x900 window) ===
 const MAP_PLAYER_ZONE: Rect2  = Rect2(120, 220, 200, 560)   # x, y, w, h — left side

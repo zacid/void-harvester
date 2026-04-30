@@ -5,8 +5,7 @@ extends Node2D
 
 const BAR_WIDTH: float    = 800.0
 const BAR_HEIGHT: float   = 10.0
-const BAR_CENTER_X: float = 800.0
-const BAR_TOP_Y: float    = 862.0
+const BAR_BOTTOM_OFFSET: float = 38.0   # px from bottom of visible viewport
 const FADE_HALF: float    = 60.0   # half-width of the soft transition zone
 const SLICES: int         = 80     # number of thin rects used to fake the gradient
 
@@ -33,8 +32,9 @@ func _draw() -> void:
 	var sum_d = max(t.player + t.enemy, 1)
 	var player_share = float(t.player) / float(sum_d)
 
-	var bar_x = BAR_CENTER_X - BAR_WIDTH * 0.5
-	var bar_y = BAR_TOP_Y
+	var vp = get_viewport_rect().size
+	var bar_x = vp.x * 0.5 - BAR_WIDTH * 0.5
+	var bar_y = vp.y - BAR_BOTTOM_OFFSET - BAR_HEIGHT
 	var boundary_x = bar_x + BAR_WIDTH * player_share
 
 	# Outer soft glow
