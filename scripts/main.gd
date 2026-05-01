@@ -15,6 +15,14 @@ var selected_planet = null
 var game_over: bool = false
 var send_fraction: float = Settings.SEND_FRACTION_DEFAULT
 
+# Core currency — one pool per faction
+var player_cores: float = 0.0
+var enemy_cores: float = 0.0
+
+# Dynamically created HUD elements
+var cores_label: Label
+var mine_button: Button
+
 # AI state
 var _ai_click_timer: Timer
 var _ai_upgrade_timer: Timer
@@ -46,7 +54,36 @@ func _ready() -> void:
 		_ai_upgrade_timer.start()
 	upgrade_button.pressed.connect(_on_upgrade_button_pressed)
 	hud_label.text = ""
+	_create_hud_mining_elements()
 	_refresh_hud()
+
+func _create_hud_mining_elements() -> void:
+	var hud = $HUD
+
+	cores_label = Label.new()
+	cores_label.name = "CoresLabel"
+	cores_label.offset_left   = 24.0
+	cores_label.offset_top    = 92.0
+	cores_label.offset_right  = 600.0
+	cores_label.offset_bottom = 132.0
+	cores_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	cores_label.add_theme_color_override("font_outline_color", Color(0.15, 0.08, 0.0))
+	cores_label.add_theme_constant_override("outline_size", 4)
+	cores_label.add_theme_font_size_override("font_size", 20)
+	cores_label.text = "Cores: 0"
+	hud.add_child(cores_label)
+
+	mine_button = Button.new()
+	mine_button.name = "MineButton"
+	mine_button.offset_left   = 244.0
+	mine_button.offset_top    = 816.0
+	mine_button.offset_right  = 430.0
+	mine_button.offset_bottom = 854.0
+	mine_button.add_theme_font_size_override("font_size", 18)
+	mine_button.text = "Mine"
+	mine_button.disabled = true
+	mine_button.pressed.connect(_on_mine_button_pressed)
+	hud.add_child(mine_button)
 
 func _randomize_planet_positions() -> void:
 	var rng = RandomNumberGenerator.new()
@@ -88,41 +125,19 @@ func _pick_position_in_zone(rng: RandomNumberGenerator, zone: Rect2, placed: Arr
 		best = candidate  # fall back to last attempt
 	return best
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# Drain cores from all planets each frame (routed per owner)
+	for planet in get_planets():
+		var earned = planet.drain_cores(delta)
+		if earned > 0.0:
+			match planet.owner_type:
+				planet.Owner.PLAYER:
+					player_cores += earned
+				planet.Owner.ENEMY:
+					enemy_cores += earned
+	cores_label.text = "Cores: %d" % int(player_cores)
 	if selected_planet != null:
 		_refresh_hud()
-
-func _input(event: InputEvent) -> void:
-	if game_over and event is InputEventKey and event.pressed and event.keycode == KEY_R:
-		get_tree().reload_current_scene()
-		return
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_adjust_send(Settings.SEND_FRACTION_STEP)
-			return
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_adjust_send(-Settings.SEND_FRACTION_STEP)
-			return
-		elif event.button_index == MOUSE_BUTTON_LEFT:
-			# Ignore world-click deselect when the mouse is over HUD controls.
-			if get_viewport().gui_get_hovered_control() != null:
-				return
-			# Empty-space deselect using a geometric check — doesn't depend on
-			# Godot's input-handled flag, which can be unreliable from Area2D._input_event.
-			if not _click_was_on_planet():
-				_deselect()
-	elif event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_UP:
-			_adjust_send(Settings.SEND_FRACTION_STEP)
-		elif event.keycode == KEY_DOWN:
-			_adjust_send(-Settings.SEND_FRACTION_STEP)
-
-func _click_was_on_planet() -> bool:
-	var pos = get_global_mouse_position()
-	for planet in get_planets():
-		if pos.distance_to(planet.global_position) <= planet.PLANET_RADIUS:
-			return true
-	return false
 
 # === Planet click handlers ===
 
@@ -211,22 +226,59 @@ func _spawn_drone(from_pos: Vector2, target, owner_val: int) -> void:
 	fleets_container.add_child(drone)
 	drone.init(from_pos, target, owner_val)
 
+# === Input ===
+
+func _input(event: InputEvent) -> void:
+	if game_over and event is InputEventKey and event.pressed and event.keycode == KEY_R:
+		get_tree().reload_current_scene()
+		return
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_adjust_send(Settings.SEND_FRACTION_STEP)
+			return
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_adjust_send(-Settings.SEND_FRACTION_STEP)
+			return
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			# Ignore world-click deselect when the mouse is over HUD controls.
+			if get_viewport().gui_get_hovered_control() != null:
+				return
+			# Empty-space deselect using a geometric check — doesn't depend on
+			# Godot's input-handled flag, which can be unreliable from Area2D._input_event.
+			if not _click_was_on_planet():
+				_deselect()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_UP:
+			_adjust_send(Settings.SEND_FRACTION_STEP)
+		elif event.keycode == KEY_DOWN:
+			_adjust_send(-Settings.SEND_FRACTION_STEP)
+
+func _click_was_on_planet() -> bool:
+	var pos = get_global_mouse_position()
+	for planet in get_planets():
+		if pos.distance_to(planet.global_position) <= planet.PLANET_RADIUS:
+			return true
+	return false
+
 # === HUD ===
 
 func _refresh_hud() -> void:
 	if not send_label or not upgrade_label or not upgrade_button:
 		return
+	cores_label.text = "Cores: %d" % int(player_cores)
 	var pct = int(round(send_fraction * 100.0))
 	if selected_planet != null:
 		var n = int(selected_planet.drone_count * send_fraction)
 		send_label.text = "Send: %d%%  (%d drones)" % [pct, n]
 		upgrade_label.text = _upgrade_status_text(selected_planet)
 		_refresh_upgrade_button(selected_planet)
+		_refresh_mine_button(selected_planet)
 	else:
 		send_label.text = "Send: %d%%" % pct
 		upgrade_label.text = ""
 		upgrade_button.text = "Upgrade"
 		upgrade_button.disabled = true
+		mine_button.disabled = true
 
 func _refresh_upgrade_button(planet) -> void:
 	if planet.owner_type != planet.Owner.PLAYER:
@@ -241,17 +293,30 @@ func _refresh_upgrade_button(planet) -> void:
 		upgrade_button.text = "Max Tier"
 		upgrade_button.disabled = true
 		return
-	var cost = planet.upgrade_cost()
-	upgrade_button.text = "Upgrade (%d)" % cost
-	upgrade_button.disabled = planet.drone_count < cost
+	var cost = planet.upgrade_core_cost()
+	upgrade_button.text = "Upgrade (%d cores)" % cost
+	upgrade_button.disabled = not planet.can_upgrade() or player_cores < cost
 
-func _on_upgrade_button_pressed() -> void:
-	if game_over:
+func _refresh_mine_button(planet) -> void:
+	if planet.owner_type != planet.Owner.PLAYER or planet.is_upgrading:
+		mine_button.text = "Mine"
+		mine_button.disabled = true
 		return
-	if selected_planet == null:
+	var max_m = planet.get_max_miners()
+	if max_m <= 0:
+		mine_button.text = "Mine (T1+)"
+		mine_button.disabled = true
 		return
-	if selected_planet.start_upgrade():
-		_refresh_hud()
+	if planet.miner_count >= max_m:
+		mine_button.text = "Mine (full %d)" % max_m
+		mine_button.disabled = true
+		return
+	if planet.drone_count < 1.0:
+		mine_button.text = "Mine (need drone)"
+		mine_button.disabled = true
+		return
+	mine_button.text = "Mine  %d/%d" % [planet.miner_count, max_m]
+	mine_button.disabled = false
 
 func _upgrade_status_text(planet) -> String:
 	if planet.owner_type != planet.Owner.PLAYER:
@@ -261,10 +326,26 @@ func _upgrade_status_text(planet) -> String:
 		return "Upgrading…  %d%%" % pct
 	if planet.upgrade_tier >= Settings.TIER_COUNT - 1:
 		return "Tier %d  (max)" % planet.upgrade_tier
-	var cost = planet.upgrade_cost()
-	if planet.drone_count >= cost:
-		return "Tier %d  →  Tier %d  (button, cost %d)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
-	return "Tier %d  →  Tier %d  (need %d drones)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
+	var cost = planet.upgrade_core_cost()
+	if player_cores >= cost:
+		return "Tier %d  →  Tier %d  (button, %d cores)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
+	return "Tier %d  →  Tier %d  (need %d cores)" % [planet.upgrade_tier, planet.upgrade_tier + 1, cost]
+
+func _on_upgrade_button_pressed() -> void:
+	if game_over or selected_planet == null:
+		return
+	var cost = selected_planet.upgrade_core_cost()
+	if player_cores < cost:
+		return
+	if selected_planet.start_upgrade():
+		player_cores -= cost
+		_refresh_hud()
+
+func _on_mine_button_pressed() -> void:
+	if game_over or selected_planet == null:
+		return
+	selected_planet.convert_to_miner()
+	_refresh_hud()
 
 # === Win/lose ===
 
@@ -338,23 +419,42 @@ func _on_ai_click_timer_timeout() -> void:
 func _on_ai_upgrade_timer_timeout() -> void:
 	if game_over or not Settings.AI_ENABLE_UPGRADES:
 		return
+
+	# Always try to mine — not gated by upgrade chance
+	_ai_consider_mining()
+
 	if randf() > Settings.AI_UPGRADE_CHANCE:
 		return
+
+	# Then try to spend cores on an upgrade
 	var candidates: Array = []
 	for p in get_planets():
 		if p.owner_type != p.Owner.ENEMY:
 			continue
 		if not p.can_upgrade():
 			continue
-		# Don't upgrade if it'd leave the planet too vulnerable
-		if int(p.drone_count) - p.upgrade_cost() < Settings.AI_UPGRADE_DRONE_RESERVE:
+		var cost = p.upgrade_core_cost()
+		if enemy_cores < cost:
 			continue
 		candidates.append(p)
 	if candidates.is_empty():
 		return
-	# Prefer planet with most drones (safest to take offline for 5s)
+	# Prefer planet with most drones (most established base)
 	candidates.sort_custom(func(a, b): return a.drone_count > b.drone_count)
-	candidates[0].start_upgrade()
+	var chosen = candidates[0]
+	if chosen.start_upgrade():
+		enemy_cores -= chosen.upgrade_core_cost()  # deduct before tier increments
+
+func _ai_consider_mining() -> void:
+	for p in get_planets():
+		if p.owner_type != p.Owner.ENEMY:
+			continue
+		if p.miner_count >= p.get_max_miners():
+			continue
+		# Only mine if the planet has drones to spare
+		if p.drone_count >= Settings.AI_UPGRADE_DRONE_RESERVE + 1:
+			p.convert_to_miner()
+			return  # one conversion per AI tick
 
 # === AI: defense (reacts to incoming player attacks) ===
 func _ai_consider_defense(target_planet, incoming_count: int, source_pos: Vector2) -> void:

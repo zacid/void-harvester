@@ -19,6 +19,10 @@ var displayed_send_fraction: float = 0.5
 var is_upgrading: bool = false
 var upgrade_progress: float = 0.0  # 0.0 -> 1.0
 
+# Mining drones
+var miner_count: int = 0
+var mine_phase: float = 0.0
+
 @onready var label: Label = $Label
 
 signal owner_changed(planet, new_owner)
@@ -48,6 +52,9 @@ func _process(delta: float) -> void:
 				drone_count = minf(drone_count + rate * delta, float(get_max_drones()))
 	if selected:
 		pulse_phase += delta
+		queue_redraw()
+	if miner_count > 0:
+		mine_phase += delta
 		queue_redraw()
 	update_visuals()
 
@@ -90,6 +97,29 @@ func _spawn_manual_gain_popup(amount: int) -> void:
 	tween.tween_property(popup, "modulate:a", 0.0, 0.35)
 	tween.finished.connect(popup.queue_free)
 
+# === Mining ===
+
+func get_max_miners() -> int:
+	return Settings.TIER_MINER_MAX[upgrade_tier]
+
+func convert_to_miner() -> bool:
+	if owner_type == Owner.NEUTRAL:
+		return false
+	if miner_count >= get_max_miners():
+		return false
+	if drone_count < 1.0:
+		return false
+	drone_count -= 1.0
+	miner_count += 1
+	update_visuals()
+	return true
+
+# Returns cores generated this frame — called by main.gd each _process tick.
+func drain_cores(delta: float) -> float:
+	if miner_count <= 0:
+		return 0.0
+	return miner_count * Settings.MINER_CORE_RATE * delta
+
 # === Upgrade ===
 
 func can_upgrade() -> bool:
@@ -99,17 +129,16 @@ func can_upgrade() -> bool:
 		return false
 	if upgrade_tier >= Settings.TIER_COUNT - 1:
 		return false
-	return drone_count >= upgrade_cost()
+	return true  # core cost is checked externally by main.gd
 
-func upgrade_cost() -> int:
+func upgrade_core_cost() -> int:
 	if upgrade_tier >= Settings.TIER_COUNT - 1:
 		return -1
-	return Settings.UPGRADE_COSTS[upgrade_tier + 1]
+	return Settings.UPGRADE_CORE_COSTS[upgrade_tier + 1]
 
 func start_upgrade() -> bool:
 	if not can_upgrade():
 		return false
-	drone_count -= upgrade_cost()
 	is_upgrading = true
 	upgrade_progress = 0.0
 	update_visuals()
@@ -117,6 +146,8 @@ func start_upgrade() -> bool:
 
 func _finish_upgrade() -> void:
 	upgrade_tier += 1
+	# Cap miners to new tier's limit (in case it's lower, though it never is here)
+	miner_count = mini(miner_count, get_max_miners())
 	is_upgrading = false
 	upgrade_progress = 0.0
 	update_visuals()
@@ -136,6 +167,7 @@ func receive_fleet(count: int, attacking_owner: int) -> void:
 		if drone_count < 0:
 			owner_type = attacking_owner
 			drone_count = absf(drone_count)
+			miner_count = 0  # miners die when planet is captured
 			if is_upgrading:
 				_cancel_upgrade()
 			owner_changed.emit(self, owner_type)
@@ -146,7 +178,10 @@ func receive_fleet(count: int, attacking_owner: int) -> void:
 func update_visuals() -> void:
 	if not label:
 		return
-	label.text = str(int(drone_count))
+	if miner_count > 0:
+		label.text = "%d·%d" % [int(drone_count), miner_count]
+	else:
+		label.text = str(int(drone_count))
 	match owner_type:
 		Owner.NEUTRAL:
 			current_color = Color(0.55, 0.5, 0.6)
@@ -183,6 +218,9 @@ func _draw() -> void:
 	# Tier indicator (small bright dots above the planet)
 	_draw_tier_dots(center)
 
+	# Orbiting miner drones (drawn before UI rings so rings overlay them)
+	_draw_miners(center)
+
 	# Selected pulsing ring (gentler pulse — stays visible throughout)
 	if selected:
 		var pulse_alpha = (0.78 + 0.22 * sin(pulse_phase * 4.0)) * (0.45 if is_upgrading else 1.0)
@@ -195,6 +233,19 @@ func _draw() -> void:
 	# Send-amount ring (only when selected and NOT upgrading)
 	if selected and not is_upgrading:
 		_draw_send_ring(center)
+
+func _draw_miners(center: Vector2) -> void:
+	if miner_count <= 0:
+		return
+	var r = Settings.MINER_ORBIT_RADIUS
+	var col = Color(1.0, 0.78, 0.15)  # amber-gold, same particle style as flying drones
+	var spacing = TAU / float(miner_count)
+	for i in range(miner_count):
+		var angle = mine_phase * Settings.MINER_ORBIT_SPEED + spacing * i
+		var pos = center + Vector2(cos(angle), sin(angle)) * r
+		draw_circle(pos, 5.5, Color(col.r, col.g, col.b, 0.18))  # outer glow halo
+		draw_circle(pos, 3.0, Color(col.r, col.g, col.b, 0.75))  # body
+		draw_circle(pos, 1.5, Color(1.0, 1.0, 0.85, 0.95))       # bright core
 
 func _draw_tier_dots(center: Vector2) -> void:
 	# Show one dot per tier above tier 0 (so tier 1 = 1 dot, etc.)

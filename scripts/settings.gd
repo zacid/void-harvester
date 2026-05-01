@@ -57,3 +57,12 @@ const FLEET_SPEED: float = 220.0
 const FLEET_SPEED_VARIANCE: float = 0.15      # +/- fraction per drone
 const DRONE_SPAWN_INTERVAL: float = 0.02       # seconds between successive drone spawns within one launch
 const DRONE_SPAWN_JITTER: float = 14.0         # pixels of random offset around source planet
+
+# === Mining Drones ===
+const MINER_CORE_RATE: float = 0.15          # cores/sec per miner drone
+const MINER_ORBIT_RADIUS: float = 64.0       # px from planet center (outside all UI rings)
+const MINER_ORBIT_SPEED: float = 0.65        # radians/sec
+const TIER_MINER_MAX: Array[int] = [0, 2, 5, 10]  # max miners allowed per upgrade tier
+
+# === Core upgrade costs (cores required — no longer drone cost) ===
+const UPGRADE_CORE_COSTS: Array[int] = [0, 0, 15, 40]  # index = destination tier
